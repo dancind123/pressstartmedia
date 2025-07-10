@@ -9,7 +9,7 @@ sudo mkdir -p /mnt/media
 echo "Creating Samba credentials file..."
 cat <<EOF > /home/media/.smbcredentials
 username=pressstartmedia
-password=YOUR_PASSWORD_HERE
+password=B0ws3rsW!f!
 EOF
 
 chmod 600 /home/media/.smbcredentials
