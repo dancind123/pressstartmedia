@@ -66,4 +66,17 @@ EOF
 
 chown -R media:media /home/media/.config
 
+# Create VLC autostart entry
+mkdir -p /home/media/.config/autostart
+
+cat <<EOF > /home/media/.config/autostart/vlc.desktop
+[Desktop Entry]
+Type=Application
+Exec=cvlc /home/media/Videos/playlist.xspf
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=VLC Autoplay
+EOF
+
 echo "Setup complete. Reboot to apply changes and configure VLC manually afterward."
