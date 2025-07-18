@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "Installing required packages..."
-sudo apt update && sudo apt install -y vlc cifs-utils fbi
+sudo apt update && sudo apt install -y cifs-utils fbi rsync lxsession
 
 echo "Creating mount and local directories..."
 sudo mkdir -p /mnt/media
@@ -47,15 +47,23 @@ echo "Setting up splash screen..."
 sudo cp PSLogo.png /etc
 sudo bash -c 'echo -e "[Service]\\nExecStartPre=/usr/bin/fbi -T 1 -noverbose -a /etc/PSLogo.png" >> /lib/systemd/system/display-manager.service'
 
-echo "Configuring VLC to autoplay on boot..."
-mkdir -p /home/media/.config/autostart
-
-cat <<EOF > /home/media/.config/autostart/vlc.desktop
-[Desktop Entry]
-Type=Application
-Name=VLC Autoplay
-Exec=vlc --no-audio --fullscreen --no-video-title-show --sub-track=-1 --random --loop /home/media/Videos
-X-GNOME-Autostart-enabled=true
+echo "Setting PSLogo.png as desktop wallpaper..."
+mkdir -p /home/media/.config/pcmanfm/LXDE-pi
+cat <<EOF > /home/media/.config/pcmanfm/LXDE-pi/desktop-items-0.conf
+[*]
+wallpaper_mode=fit
+wallpaper=/etc/PSLogo.png
+desktop_bg=#000000
+desktop_fg=#ffffff
+desktop_shadow=1
+desktop_font=Sans 10
+show_wm_menu=1
+sort=mtime;ascending;
+show_documents=0
+show_trash=0
+show_mounts=0
 EOF
 
-echo "Setup complete. Please reboot the system to begin playback."
+chown -R media:media /home/media/.config
+
+echo "Setup complete. Reboot to apply changes and configure VLC manually afterward."
