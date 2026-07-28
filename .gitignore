@@ -1,0 +1,42 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Logs
+logs/
+*.log
+
+# Generated playlists
+playlist.xspf
+
+# Credentials
+*-credentials
+*.credentials
+credentials
+credentials.*
+
+# Runtime identity
+identity.conf
+
+# Backups
+*.backup
+*.backup-*
+*-backup
+*.bak
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+
+# Local VS Code settings
+.vscode/settings.json
+
+# Temporary files
+*.tmp
+*.swp
