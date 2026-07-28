@@ -1,0 +1,12 @@
+SERVER=10.0.5.95
+SHARE=Media
+MOUNT=/mnt/media
+
+PLAYLIST=/home/media/PressStart/config/playlist.xspf
+
+USERNAME=pressstartmedia
+CREDENTIALS=/home/media/PressStart/config/media-credentials
+
+RETRY_INTERVAL=10
+
+LOGDIR=/home/media/PressStart/logs

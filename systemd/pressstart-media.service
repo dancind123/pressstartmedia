@@ -1,0 +1,14 @@
+[Unit]
+Description=Press Start Media Player
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=/home/media/PressStart/bin/start-media.sh
+Restart=always
+RestartSec=5
+KillMode=control-group
+TimeoutStopSec=15
+
+[Install]
+WantedBy=default.target
