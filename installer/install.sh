@@ -65,9 +65,11 @@ cp \
     "${REPOSITORY_ROOT}/src/main.py" \
     "${INSTALL_ROOT}/app/main.py"
 
-cp -a \
-    "${REPOSITORY_ROOT}/assets/." \
-    "${INSTALL_ROOT}/assets/"
+if [ "$(readlink -f "${REPOSITORY_ROOT}/assets")" != "$(readlink -f "${INSTALL_ROOT}/assets")" ]; then
+    cp -a \
+        "${REPOSITORY_ROOT}/assets/." \
+        "${INSTALL_ROOT}/assets/"
+fi
 
 echo "[4/8] Installing runtime scripts..."
 
@@ -75,9 +77,11 @@ cp \
     "${REPOSITORY_ROOT}/scripts/start-media.sh" \
     "${INSTALL_ROOT}/bin/start-media.sh"
 
-cp \
-    "${REPOSITORY_ROOT}/scripts/generate-playlist.py" \
-    "${INSTALL_ROOT}/scripts/generate-playlist.py"
+if [ "$(readlink -f "${REPOSITORY_ROOT}/scripts/generate-playlist.py")" != "$(readlink -f "${INSTALL_ROOT}/scripts/generate-playlist.py")" ]; then
+    cp \
+        "${REPOSITORY_ROOT}/scripts/generate-playlist.py" \
+        "${INSTALL_ROOT}/scripts/generate-playlist.py"
+fi
 
 chmod +x \
     "${INSTALL_ROOT}/bin/start-media.sh" \
