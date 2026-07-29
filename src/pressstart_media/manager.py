@@ -299,12 +299,10 @@ class MediaManager:
             },
         )
 
-        self.display.show(
+        self.display.show_status(
             "Reloading Media",
             self.playlist_status_message(),
         )
-
-        self.display.show_logo()
 
         video_count = self.playlist.generate()
 
@@ -470,12 +468,10 @@ class MediaManager:
     def start_player(self) -> None:
         self.set_state("STARTING_PLAYER")
 
-        self.display.show(
+        self.display.show_status(
             "Starting Playback",
             "Launching VLC...",
         )
-
-        self.display.show_logo()
 
         self.player.start()
 
@@ -491,12 +487,10 @@ class MediaManager:
         try:
             self.set_state("STARTING")
 
-            self.display.show(
+            self.display.show_status(
                 "Starting Platform",
                 "Initializing...",
             )
-
-            self.display.show_logo()
 
             self.log_resolved_configuration()
 
@@ -504,7 +498,7 @@ class MediaManager:
                 "GENERATING_PLAYLIST"
             )
 
-            self.display.show(
+            self.display.show_status(
                 "Preparing Media",
                 self.playlist_status_message(),
             )
@@ -600,7 +594,7 @@ class MediaManager:
                     },
                 )
 
-                self.display.show(
+                self.display.show_status(
                     "Restarting Playback",
                     restart_message,
                 )

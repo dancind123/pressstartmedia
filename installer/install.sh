@@ -33,17 +33,22 @@ apt-get update
 
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
     cifs-utils \
+    fonts-dejavu-core \
     python3 \
     python3-paho-mqtt \
+    python3-pil \
+    swayimg \
     vlc
 
 echo "[2/8] Creating Press Start directories..."
 
 mkdir -p \
     "${INSTALL_ROOT}/app" \
+    "${INSTALL_ROOT}/assets" \
     "${INSTALL_ROOT}/bin" \
     "${INSTALL_ROOT}/config" \
     "${INSTALL_ROOT}/logs" \
+    "${INSTALL_ROOT}/runtime" \
     "${INSTALL_ROOT}/scripts" \
     "${INSTALL_HOME}/.config/systemd/user" \
     "/mnt/media"
@@ -60,6 +65,10 @@ cp \
     "${REPOSITORY_ROOT}/src/main.py" \
     "${INSTALL_ROOT}/app/main.py"
 
+cp -a \
+    "${REPOSITORY_ROOT}/assets/." \
+    "${INSTALL_ROOT}/assets/"
+
 echo "[4/8] Installing runtime scripts..."
 
 cp \
@@ -74,7 +83,7 @@ chmod +x \
     "${INSTALL_ROOT}/bin/start-media.sh" \
     "${INSTALL_ROOT}/scripts/generate-playlist.py"
 
-echo "[5/8] Installing configuration templates..."
+echo "[5/8] Installing platform configuration..."
 
 if [ ! -f "${INSTALL_ROOT}/config/media.conf" ]; then
     cp \
@@ -82,11 +91,8 @@ if [ ! -f "${INSTALL_ROOT}/config/media.conf" ]; then
         "${INSTALL_ROOT}/config/media.conf"
 fi
 
-if [ ! -f "${INSTALL_ROOT}/config/player.conf" ]; then
-    cp \
-        "${REPOSITORY_ROOT}/config/templates/player.conf.example" \
-        "${INSTALL_ROOT}/config/player.conf"
-fi
+# player.conf is intentionally not created here. A new player remains
+# unprovisioned until Home Assistant supplies its name and profile.
 
 echo "[6/8] Installing systemd user service..."
 
@@ -103,7 +109,9 @@ chown -R "${INSTALL_USER}:${INSTALL_USER}" \
 chmod 755 \
     "${INSTALL_ROOT}" \
     "${INSTALL_ROOT}/app" \
+    "${INSTALL_ROOT}/assets" \
     "${INSTALL_ROOT}/bin" \
+    "${INSTALL_ROOT}/runtime" \
     "${INSTALL_ROOT}/scripts"
 
 echo "[8/8] Enabling user service..."
@@ -123,14 +131,12 @@ echo "Installation files are in place."
 echo
 echo "The service has been enabled but not started."
 echo
-echo "Remaining setup:"
-echo "  1. Add Storage Server credentials."
-echo "  2. Configure the /mnt/media mount."
-echo "  3. Configure this player's name and profile."
-echo "  4. Generate the playlist."
-echo "  5. Start the service."
+echo "A new player will remain unprovisioned until Home Assistant"
+echo "supplies its player name and profile through MQTT."
 echo
-git add installer/install.sh
-git update-index --chmod=+x installer/install.sh
-git --no-pager diff --cached --summary
-git --no-pager diff --cached --check
+echo "Remaining setup before the first clean-Pi test:"
+echo "  1. Install MQTT credentials."
+echo "  2. Install Storage Server credentials."
+echo "  3. Configure the /mnt/media mount."
+echo "  4. Start or reboot into the user session."
+echo

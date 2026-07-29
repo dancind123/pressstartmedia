@@ -3,6 +3,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from pressstart_media.status_renderer import StatusRenderer
 from pressstart_media.version import BUILD_LABEL
 
 
@@ -13,6 +14,7 @@ class Display:
 
     def __init__(self):
         self.process = None
+        self.status_renderer = StatusRenderer()
 
     def build_environment(self) -> dict[str, str]:
         environment = os.environ.copy()
@@ -57,32 +59,7 @@ class Display:
             "sudo apt install swayimg"
         )
 
-    def show_logo(self) -> None:
-        if self.process and self.process.poll() is None:
-            return
-
-        if not self.LOGO_PATH.is_file():
-            raise RuntimeError(
-                f"Logo image was not found: "
-                f"{self.LOGO_PATH}"
-            )
-
-        command = [
-            self.find_viewer(),
-            "--fullscreen",
-            "--config=info.show=no",
-            str(self.LOGO_PATH),
-        ]
-
-        self.process = subprocess.Popen(
-            command,
-            env=self.build_environment(),
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-
-    def hide_logo(self) -> None:
+    def _stop_viewer(self) -> None:
         if not self.process:
             return
 
@@ -101,6 +78,37 @@ class Display:
 
         self.process = None
 
+    def _show_image(self, image_path: Path) -> None:
+        if not image_path.is_file():
+            raise RuntimeError(
+                f"Display image was not found: {image_path}"
+            )
+
+        self._stop_viewer()
+
+        command = [
+            self.find_viewer(),
+            "--fullscreen",
+            "--config=info.show=no",
+            str(image_path),
+        ]
+
+        self.process = subprocess.Popen(
+            command,
+            env=self.build_environment(),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+    def show_logo(self) -> None:
+        self._show_image(
+            self.LOGO_PATH
+        )
+
+    def hide_logo(self) -> None:
+        self._stop_viewer()
+
     def show(self, title: str, message: str = "") -> None:
         print()
         print("=" * 60)
@@ -115,13 +123,30 @@ class Display:
         print("=" * 60)
         print()
 
+    def show_status(
+        self,
+        title: str,
+        message: str = "",
+    ) -> None:
+        self.show(
+            title,
+            message,
+        )
+
+        status_image = self.status_renderer.render(
+            title,
+            message,
+        )
+
+        self._show_image(
+            status_image
+        )
+
 
 if __name__ == "__main__":
     display = Display()
 
-    display.show(
+    display.show_status(
         "Display Test",
-        "Showing Press Start logo."
+        "Showing Press Start status screen.",
     )
-
-    display.show_logo()

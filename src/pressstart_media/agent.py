@@ -1060,6 +1060,14 @@ class MediaAgent:
         finally:
             self.configuration_received.set()
 
+    def is_provisioned(self) -> bool:
+        return self.provisioning.config_path.is_file()
+
+    def wait_for_provisioning(self) -> None:
+        while not self.is_provisioned():
+            self.configuration_received.wait()
+            self.configuration_received.clear()
+
     def connect_for_provisioning(self) -> None:
         config_topic = self._topic("config/set")
         command_topic = self._topic("command")
