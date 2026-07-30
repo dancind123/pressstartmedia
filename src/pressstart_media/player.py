@@ -128,6 +128,7 @@ class Player:
                 "--qt-minimal-view",
                 "--no-qt-video-autoresize",
                 "--avcodec-hw=none",
+                "--mouse-hide-timeout=1000",
                 str(self.playlist_path),
             ]
         )
