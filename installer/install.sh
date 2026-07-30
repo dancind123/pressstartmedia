@@ -6,6 +6,15 @@ INSTALL_USER="media"
 INSTALL_HOME="/home/${INSTALL_USER}"
 INSTALL_ROOT="${INSTALL_HOME}/PressStart"
 
+SERVICE_USERNAME="pressstartmedia"
+
+MEDIA_SERVER="10.0.5.95"
+MEDIA_SHARE="Media"
+MEDIA_MOUNT="/mnt/media"
+
+MEDIA_CREDENTIALS="${INSTALL_ROOT}/config/media-credentials"
+MQTT_CREDENTIALS="${INSTALL_ROOT}/config/mqtt-credentials"
+
 REPOSITORY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 echo
@@ -27,7 +36,37 @@ if ! id "${INSTALL_USER}" >/dev/null 2>&1; then
     exit 1
 fi
 
-echo "[1/8] Installing system packages..."
+echo "This installer will use one shared password for:"
+echo "  - Samba media access"
+echo "  - MQTT access"
+echo
+echo "Username for both services: ${SERVICE_USERNAME}"
+echo
+
+while true; do
+    read -r -s -p "Enter the shared Press Start service password: " SERVICE_PASSWORD
+    echo
+
+    if [ -z "${SERVICE_PASSWORD}" ]; then
+        echo "ERROR: The password cannot be empty."
+        echo
+        continue
+    fi
+
+    read -r -s -p "Confirm the shared Press Start service password: " SERVICE_PASSWORD_CONFIRM
+    echo
+
+    if [ "${SERVICE_PASSWORD}" != "${SERVICE_PASSWORD_CONFIRM}" ]; then
+        echo "ERROR: The passwords did not match."
+        echo
+        continue
+    fi
+
+    break
+done
+
+echo
+echo "[1/11] Installing system packages..."
 
 apt-get update
 
@@ -40,7 +79,7 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     swayimg \
     vlc
 
-echo "[2/8] Creating Press Start directories..."
+echo "[2/11] Creating Press Start directories..."
 
 mkdir -p \
     "${INSTALL_ROOT}/app" \
@@ -51,9 +90,9 @@ mkdir -p \
     "${INSTALL_ROOT}/runtime" \
     "${INSTALL_ROOT}/scripts" \
     "${INSTALL_HOME}/.config/systemd/user" \
-    "/mnt/media"
+    "${MEDIA_MOUNT}"
 
-echo "[3/8] Installing application files..."
+echo "[3/11] Installing application files..."
 
 rm -rf "${INSTALL_ROOT}/app/pressstart_media"
 
@@ -71,7 +110,7 @@ if [ "$(readlink -f "${REPOSITORY_ROOT}/assets")" != "$(readlink -f "${INSTALL_R
         "${INSTALL_ROOT}/assets/"
 fi
 
-echo "[4/8] Installing runtime scripts..."
+echo "[4/11] Installing runtime scripts..."
 
 cp \
     "${REPOSITORY_ROOT}/scripts/start-media.sh" \
@@ -87,7 +126,7 @@ chmod +x \
     "${INSTALL_ROOT}/bin/start-media.sh" \
     "${INSTALL_ROOT}/scripts/generate-playlist.py"
 
-echo "[5/8] Installing platform configuration..."
+echo "[5/11] Installing platform configuration..."
 
 if [ ! -f "${INSTALL_ROOT}/config/media.conf" ]; then
     cp \
@@ -98,13 +137,49 @@ fi
 # player.conf is intentionally not created here. A new player remains
 # unprovisioned until Home Assistant supplies its name and profile.
 
-echo "[6/8] Installing systemd user service..."
+echo "[6/11] Creating service credential files..."
+
+umask 077
+
+printf 'username=%s\npassword=%s\n' \
+    "${SERVICE_USERNAME}" \
+    "${SERVICE_PASSWORD}" \
+    > "${MEDIA_CREDENTIALS}"
+
+printf 'USERNAME=%s\nPASSWORD=%s\n' \
+    "${SERVICE_USERNAME}" \
+    "${SERVICE_PASSWORD}" \
+    > "${MQTT_CREDENTIALS}"
+
+unset SERVICE_PASSWORD
+unset SERVICE_PASSWORD_CONFIRM
+
+echo "[7/11] Configuring the media-server mount..."
+
+FSTAB_ENTRY="//${MEDIA_SERVER}/${MEDIA_SHARE} ${MEDIA_MOUNT} cifs credentials=${MEDIA_CREDENTIALS},uid=${INSTALL_USER},gid=${INSTALL_USER},iocharset=utf8,file_mode=0644,dir_mode=0755,nofail,x-systemd.automount,_netdev 0 0"
+
+FSTAB_TEMP="$(mktemp)"
+
+awk -v mount_point="${MEDIA_MOUNT}" '
+    $2 != mount_point {
+        print
+    }
+' /etc/fstab > "${FSTAB_TEMP}"
+
+printf '%s\n' "${FSTAB_ENTRY}" >> "${FSTAB_TEMP}"
+
+install -o root -g root -m 644 "${FSTAB_TEMP}" /etc/fstab
+rm -f "${FSTAB_TEMP}"
+
+systemctl daemon-reload
+
+echo "[8/11] Installing systemd user service..."
 
 cp \
     "${REPOSITORY_ROOT}/systemd/pressstart-media.service" \
     "${INSTALL_HOME}/.config/systemd/user/pressstart-media.service"
 
-echo "[7/8] Setting ownership and permissions..."
+echo "[9/11] Setting ownership and permissions..."
 
 chown -R "${INSTALL_USER}:${INSTALL_USER}" \
     "${INSTALL_ROOT}" \
@@ -118,29 +193,58 @@ chmod 755 \
     "${INSTALL_ROOT}/runtime" \
     "${INSTALL_ROOT}/scripts"
 
-echo "[8/8] Enabling user service..."
+chmod 600 \
+    "${MEDIA_CREDENTIALS}" \
+    "${MQTT_CREDENTIALS}"
+
+echo "[10/11] Enabling the user service..."
 
 loginctl enable-linger "${INSTALL_USER}"
 
+USER_ID="$(id -u "${INSTALL_USER}")"
+USER_RUNTIME_DIR="/run/user/${USER_ID}"
+
+mkdir -p "${USER_RUNTIME_DIR}"
+chown "${INSTALL_USER}:${INSTALL_USER}" "${USER_RUNTIME_DIR}"
+chmod 700 "${USER_RUNTIME_DIR}"
+
 sudo -u "${INSTALL_USER}" \
-    XDG_RUNTIME_DIR="/run/user/$(id -u "${INSTALL_USER}")" \
+    XDG_RUNTIME_DIR="${USER_RUNTIME_DIR}" \
     systemctl --user daemon-reload
 
 sudo -u "${INSTALL_USER}" \
-    XDG_RUNTIME_DIR="/run/user/$(id -u "${INSTALL_USER}")" \
+    XDG_RUNTIME_DIR="${USER_RUNTIME_DIR}" \
     systemctl --user enable pressstart-media.service
 
+echo "[11/11] Checking the media-server mount..."
+
+if mountpoint -q "${MEDIA_MOUNT}"; then
+    echo "Media server is already mounted."
+elif timeout 20 mount "${MEDIA_MOUNT}" >/dev/null 2>&1; then
+    echo "Media server mounted successfully."
+else
+    echo "WARNING: The media server could not be mounted during installation."
+    echo "The configured systemd automount will retry when the path is accessed."
+    echo "Verify the network connection and shared password if it remains unavailable."
+fi
+
 echo
-echo "Installation files are in place."
+echo "Press Start Media installation completed."
+echo
+echo "Configured automatically:"
+echo "  - Application files"
+echo "  - Runtime scripts"
+echo "  - Platform configuration"
+echo "  - Samba credentials"
+echo "  - MQTT credentials"
+echo "  - /mnt/media automount"
+echo "  - systemd user service"
 echo
 echo "The service has been enabled but not started."
 echo
-echo "A new player will remain unprovisioned until Home Assistant"
+echo "The player will remain unprovisioned until Home Assistant"
 echo "supplies its player name and profile through MQTT."
 echo
-echo "Remaining setup before the first clean-Pi test:"
-echo "  1. Install MQTT credentials."
-echo "  2. Install Storage Server credentials."
-echo "  3. Configure the /mnt/media mount."
-echo "  4. Start or reboot into the user session."
+echo "Next step:"
+echo "  Reboot the Raspberry Pi."
 echo
