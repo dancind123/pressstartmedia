@@ -77,7 +77,8 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3-paho-mqtt \
     python3-pil \
     swayimg \
-    vlc
+    vlc \
+    wtype
 
 echo "[2/11] Creating Press Start directories..."
 
@@ -90,6 +91,7 @@ mkdir -p \
     "${INSTALL_ROOT}/runtime" \
     "${INSTALL_ROOT}/scripts" \
     "${INSTALL_HOME}/.config/systemd/user" \
+    "${INSTALL_HOME}/.config/labwc" \
     "${MEDIA_MOUNT}"
 
 echo "[3/11] Installing application files..."
@@ -133,6 +135,14 @@ if [ ! -f "${INSTALL_ROOT}/config/media.conf" ]; then
         "${REPOSITORY_ROOT}/config/templates/media.conf.template" \
         "${INSTALL_ROOT}/config/media.conf"
 fi
+
+cp \
+    "${REPOSITORY_ROOT}/config/templates/labwc-rc.xml" \
+    "${INSTALL_HOME}/.config/labwc/rc.xml"
+
+cp \
+    "${REPOSITORY_ROOT}/config/templates/labwc-autostart" \
+    "${INSTALL_HOME}/.config/labwc/autostart"
 
 # player.conf is intentionally not created here. A new player remains
 # unprovisioned until Home Assistant supplies its name and profile.
@@ -183,7 +193,8 @@ echo "[9/11] Setting ownership and permissions..."
 
 chown -R "${INSTALL_USER}:${INSTALL_USER}" \
     "${INSTALL_ROOT}" \
-    "${INSTALL_HOME}/.config/systemd"
+    "${INSTALL_HOME}/.config/systemd" \
+    "${INSTALL_HOME}/.config/labwc"
 
 chmod 755 \
     "${INSTALL_ROOT}" \
@@ -235,6 +246,7 @@ echo "Configured automatically:"
 echo "  - Application files"
 echo "  - Runtime scripts"
 echo "  - Platform configuration"
+echo "  - Labwc cursor hiding"
 echo "  - Samba credentials"
 echo "  - MQTT credentials"
 echo "  - /mnt/media automount"

@@ -1,0 +1,6 @@
+# Press Start Media kiosk cursor handling.
+# Wait briefly for the Wayland session, then invoke the labwc HideCursor binding.
+(
+    sleep 3
+    /usr/bin/wtype -M alt -M logo -P h -m logo -m alt
+) &
