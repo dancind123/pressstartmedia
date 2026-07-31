@@ -66,7 +66,7 @@ while true; do
 done
 
 echo
-echo "[1/11] Installing system packages..."
+echo "[1/12] Installing system packages..."
 
 apt-get update
 
@@ -80,7 +80,7 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     vlc \
     wtype
 
-echo "[2/11] Creating Press Start directories..."
+echo "[2/12] Creating Press Start directories..."
 
 mkdir -p \
     "${INSTALL_ROOT}/app" \
@@ -94,7 +94,7 @@ mkdir -p \
     "${INSTALL_HOME}/.config/labwc" \
     "${MEDIA_MOUNT}"
 
-echo "[3/11] Installing application files..."
+echo "[3/12] Installing application files..."
 
 rm -rf "${INSTALL_ROOT}/app/pressstart_media"
 
@@ -112,7 +112,7 @@ if [ "$(readlink -f "${REPOSITORY_ROOT}/assets")" != "$(readlink -f "${INSTALL_R
         "${INSTALL_ROOT}/assets/"
 fi
 
-echo "[4/11] Installing runtime scripts..."
+echo "[4/12] Installing runtime scripts..."
 
 cp \
     "${REPOSITORY_ROOT}/scripts/start-media.sh" \
@@ -128,7 +128,7 @@ chmod +x \
     "${INSTALL_ROOT}/bin/start-media.sh" \
     "${INSTALL_ROOT}/scripts/generate-playlist.py"
 
-echo "[5/11] Installing platform configuration..."
+echo "[5/12] Installing platform configuration..."
 
 if [ ! -f "${INSTALL_ROOT}/config/media.conf" ]; then
     cp \
@@ -136,18 +136,10 @@ if [ ! -f "${INSTALL_ROOT}/config/media.conf" ]; then
         "${INSTALL_ROOT}/config/media.conf"
 fi
 
-cp \
-    "${REPOSITORY_ROOT}/config/templates/labwc-rc.xml" \
-    "${INSTALL_HOME}/.config/labwc/rc.xml"
-
-cp \
-    "${REPOSITORY_ROOT}/config/templates/labwc-autostart" \
-    "${INSTALL_HOME}/.config/labwc/autostart"
-
 # player.conf is intentionally not created here. A new player remains
 # unprovisioned until Home Assistant supplies its name and profile.
 
-echo "[6/11] Creating service credential files..."
+echo "[6/12] Creating service credential files..."
 
 umask 077
 
@@ -164,7 +156,7 @@ printf 'USERNAME=%s\nPASSWORD=%s\n' \
 unset SERVICE_PASSWORD
 unset SERVICE_PASSWORD_CONFIRM
 
-echo "[7/11] Configuring the media-server mount..."
+echo "[7/12] Configuring the media-server mount..."
 
 FSTAB_ENTRY="//${MEDIA_SERVER}/${MEDIA_SHARE} ${MEDIA_MOUNT} cifs credentials=${MEDIA_CREDENTIALS},uid=${INSTALL_USER},gid=${INSTALL_USER},iocharset=utf8,file_mode=0644,dir_mode=0755,nofail,x-systemd.automount,_netdev 0 0"
 
@@ -183,13 +175,23 @@ rm -f "${FSTAB_TEMP}"
 
 systemctl daemon-reload
 
-echo "[8/11] Installing systemd user service..."
+echo "[8/12] Installing kiosk cursor configuration..."
+
+install -o "${INSTALL_USER}" -g "${INSTALL_USER}" -m 644 \
+    "${REPOSITORY_ROOT}/config/templates/labwc-rc.xml" \
+    "${INSTALL_HOME}/.config/labwc/rc.xml"
+
+install -o "${INSTALL_USER}" -g "${INSTALL_USER}" -m 644 \
+    "${REPOSITORY_ROOT}/config/templates/labwc-autostart" \
+    "${INSTALL_HOME}/.config/labwc/autostart"
+
+echo "[9/12] Installing systemd user service..."
 
 cp \
     "${REPOSITORY_ROOT}/systemd/pressstart-media.service" \
     "${INSTALL_HOME}/.config/systemd/user/pressstart-media.service"
 
-echo "[9/11] Setting ownership and permissions..."
+echo "[10/12] Setting ownership and permissions..."
 
 chown -R "${INSTALL_USER}:${INSTALL_USER}" \
     "${INSTALL_ROOT}" \
@@ -208,7 +210,7 @@ chmod 600 \
     "${MEDIA_CREDENTIALS}" \
     "${MQTT_CREDENTIALS}"
 
-echo "[10/11] Enabling the user service..."
+echo "[11/12] Enabling the user service..."
 
 loginctl enable-linger "${INSTALL_USER}"
 
@@ -227,7 +229,7 @@ sudo -u "${INSTALL_USER}" \
     XDG_RUNTIME_DIR="${USER_RUNTIME_DIR}" \
     systemctl --user enable pressstart-media.service
 
-echo "[11/11] Checking the media-server mount..."
+echo "[12/12] Checking the media-server mount..."
 
 if mountpoint -q "${MEDIA_MOUNT}"; then
     echo "Media server is already mounted."
@@ -246,11 +248,11 @@ echo "Configured automatically:"
 echo "  - Application files"
 echo "  - Runtime scripts"
 echo "  - Platform configuration"
-echo "  - Labwc cursor hiding"
 echo "  - Samba credentials"
 echo "  - MQTT credentials"
 echo "  - /mnt/media automount"
 echo "  - systemd user service"
+echo "  - automatic cursor hiding"
 echo
 echo "The service has been enabled but not started."
 echo
