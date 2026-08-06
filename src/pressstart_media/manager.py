@@ -70,6 +70,7 @@ class MediaManager:
         self.command_handlers = {
             "restart": self.restart_playback,
             "reload_playlist": self.reload_playlist,
+            "reload_configuration": self.reload_configuration,
             "reboot": self.reboot_system,
             "shutdown": self.shutdown_system,
         }
@@ -291,6 +292,12 @@ class MediaManager:
             state="RESTARTING_PLAYER",
         )
 
+    def reload_configuration(self) -> None:
+        self._request_player_restart(
+            reason="reload_configuration",
+            state="RELOADING_CONFIGURATION",
+        )
+
     def reload_playlist(self) -> None:
         self.set_state(
             "RELOADING_PLAYLIST",
@@ -311,7 +318,7 @@ class MediaManager:
         )
 
         self.logger.info(
-            f"Reloaded playlist contains {video_count} videos"
+            f"Reloaded playlist contains {video_count} media items"
         )
 
         self._request_player_restart(
@@ -468,9 +475,13 @@ class MediaManager:
     def start_player(self) -> None:
         self.set_state("STARTING_PLAYER")
 
+        engine = str(
+            self.config.get_player("PLAYBACK_ENGINE") or "vlc"
+        ).upper()
+
         self.display.show_status(
             "Starting Playback",
-            "Launching VLC...",
+            f"Launching {engine}...",
         )
 
         self.player.start()
@@ -506,7 +517,7 @@ class MediaManager:
             video_count = self.playlist.generate()
 
             self.logger.info(
-                f"Playlist contains {video_count} videos"
+                f"Playlist contains {video_count} media items"
             )
 
             while True:
@@ -527,7 +538,7 @@ class MediaManager:
                     "shutdown",
                 }:
                     self.logger.info(
-                        "VLC stopped for requested system action: "
+                        "Player stopped for requested system action: "
                         f"{exit_reason}"
                     )
 
@@ -540,9 +551,10 @@ class MediaManager:
                 if exit_reason in {
                     "restart",
                     "reload_playlist",
+                    "reload_configuration",
                 }:
                     self.logger.info(
-                        "VLC stopped for requested action: "
+                        "Player stopped for requested action: "
                         f"{exit_reason}"
                     )
 
@@ -551,17 +563,31 @@ class MediaManager:
                     )
 
                     if exit_reason == "reload_playlist":
-                        restart_message = (
-                            "Playlist reloaded"
+                        restart_message = "Playlist reloaded"
+                    elif exit_reason == "reload_configuration":
+                        self.config = Config()
+                        self.playlist = PlaylistManager(
+                            self.config,
+                            self.logger,
                         )
+                        self.player = Player(
+                            self.config,
+                            self.logger,
+                        )
+                        media_count = self.playlist.generate()
+                        self.logger.info(
+                            "Configuration reloaded successfully"
+                        )
+                        self.logger.info(
+                            f"Reloaded playlist contains {media_count} media items"
+                        )
+                        restart_message = "Configuration applied"
                     else:
-                        restart_message = (
-                            "Restart requested"
-                        )
+                        restart_message = "Restart requested"
 
                 else:
                     self.logger.warning(
-                        f"VLC exited with code {exit_code}"
+                        f"Player exited with code {exit_code}"
                     )
 
                     restart_delay = (
@@ -569,7 +595,7 @@ class MediaManager:
                     )
 
                     restart_message = (
-                        "VLC stopped unexpectedly"
+                        "Player stopped unexpectedly"
                     )
 
                     self.set_state(

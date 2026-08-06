@@ -59,6 +59,8 @@ class ProvisioningConfig:
             "player_name",
             "player_profile",
             "player_type",
+            "image_duration",
+            "rotation",
         }
 
         unknown_keys = set(values) - allowed_keys
@@ -145,10 +147,40 @@ class ProvisioningConfig:
                 f"Supported profiles: {supported}"
             )
 
-        return {
+        result = {
             "player_name": player_name,
             "player_profile": profile_name,
         }
+
+        image_duration = values.get("image_duration")
+        if image_duration is not None:
+            try:
+                image_duration = int(image_duration)
+            except (TypeError, ValueError) as error:
+                raise ProvisioningError(
+                    "image_duration must be an integer"
+                ) from error
+            if not 1 <= image_duration <= 3600:
+                raise ProvisioningError(
+                    "image_duration must be between 1 and 3600 seconds"
+                )
+            result["image_duration"] = str(image_duration)
+
+        rotation = values.get("rotation")
+        if rotation is not None:
+            try:
+                rotation = int(rotation)
+            except (TypeError, ValueError) as error:
+                raise ProvisioningError(
+                    "rotation must be one of: 0, 90, 180, 270"
+                ) from error
+            if rotation not in {0, 90, 180, 270}:
+                raise ProvisioningError(
+                    "rotation must be one of: 0, 90, 180, 270"
+                )
+            result["rotation"] = str(rotation)
+
+        return result
 
     def resolve(
         self,
@@ -156,10 +188,15 @@ class ProvisioningConfig:
     ) -> dict[str, str]:
         validated = self.validate(configuration)
 
-        return {
+        resolved = {
             "PLAYER_NAME": validated["player_name"],
             "PLAYER_PROFILE": validated["player_profile"],
         }
+        if "image_duration" in validated:
+            resolved["IMAGE_DURATION"] = validated["image_duration"]
+        if "rotation" in validated:
+            resolved["ROTATION"] = validated["rotation"]
+        return resolved
 
     @staticmethod
     def _quote(value: str) -> str:
@@ -204,6 +241,16 @@ class ProvisioningConfig:
                 f"{self._quote(resolved['PLAYER_PROFILE'])}"
             ),
         ]
+        if resolved.get("IMAGE_DURATION") is not None:
+            lines.append(
+                "IMAGE_DURATION="
+                f"{self._quote(str(resolved['IMAGE_DURATION']))}"
+            )
+        if resolved.get("ROTATION") is not None:
+            lines.append(
+                "ROTATION="
+                f"{self._quote(str(resolved['ROTATION']))}"
+            )
 
         return "\n".join(lines) + "\n"
 

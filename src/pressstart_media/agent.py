@@ -1,3 +1,4 @@
+import json
 import shutil
 import socket
 import threading
@@ -761,6 +762,85 @@ class MediaAgent:
             config=current_media_config,
         )
 
+        refresh_config = (
+            self._home_assistant_common_config(
+                object_id="refresh_playlist",
+                name="Refresh Playlist",
+            )
+        )
+        refresh_config.update(
+            {
+                "command_topic": self._topic("command"),
+                "payload_press": "reload_playlist",
+                "icon": "mdi:playlist-refresh",
+            }
+        )
+        self._publish_home_assistant_config(
+            component="button",
+            object_id="refresh_playlist",
+            config=refresh_config,
+        )
+
+        player_config = self._player_configuration()
+        if player_config.get("PLAYER_PROFILE") == "outside_window":
+            image_duration_config = (
+                self._home_assistant_common_config(
+                    object_id="image_duration",
+                    name="Image Duration",
+                )
+            )
+            image_duration_config.update(
+                {
+                    "command_topic": self._topic("settings/set"),
+                    "command_template": (
+                        '{"image_duration": {{ value | int }}}'
+                    ),
+                    "state_topic": heartbeat_topic,
+                    "value_template": (
+                        "{{ value_json.image_duration | default(10) }}"
+                    ),
+                    "min": 1,
+                    "max": 300,
+                    "step": 1,
+                    "unit_of_measurement": "s",
+                    "mode": "box",
+                    "icon": "mdi:timer-outline",
+                    "entity_category": "config",
+                }
+            )
+            self._publish_home_assistant_config(
+                component="number",
+                object_id="image_duration",
+                config=image_duration_config,
+            )
+
+            rotation_config = (
+                self._home_assistant_common_config(
+                    object_id="rotation",
+                    name="Screen Rotation",
+                )
+            )
+            rotation_config.update(
+                {
+                    "command_topic": self._topic("settings/set"),
+                    "command_template": (
+                        '{"rotation": "{{ value }}"}'
+                    ),
+                    "state_topic": heartbeat_topic,
+                    "value_template": (
+                        "{{ value_json.rotation | default('0') | string }}"
+                    ),
+                    "options": ["0", "90", "180", "270"],
+                    "icon": "mdi:screen-rotation",
+                    "entity_category": "config",
+                }
+            )
+            self._publish_home_assistant_config(
+                component="select",
+                object_id="rotation",
+                config=rotation_config,
+            )
+
         reboot_config = (
             self._home_assistant_common_config(
                 object_id="reboot",
@@ -815,6 +895,12 @@ class MediaAgent:
             ),
             "player_profile": player_config.get(
                 "PLAYER_PROFILE"
+            ),
+            "image_duration": int(
+                player_config.get("IMAGE_DURATION", "10")
+            ),
+            "rotation": str(
+                player_config.get("ROTATION", "0")
             ),
             "hostname": socket.gethostname(),
             "ip_address": self._primary_ip_address(),
@@ -1060,6 +1146,72 @@ class MediaAgent:
         finally:
             self.configuration_received.set()
 
+    def _handle_settings(
+        self,
+        topic: str,
+        payload: bytes,
+    ) -> None:
+        try:
+            updates = json.loads(payload.decode("utf-8"))
+            if not isinstance(updates, dict):
+                raise ProvisioningError(
+                    "Settings payload must be a JSON object"
+                )
+
+            current = self._player_configuration()
+            configuration = {
+                "player_name": current.get(
+                    "PLAYER_NAME",
+                    self._player_name(),
+                ),
+                "player_profile": current.get(
+                    "PLAYER_PROFILE",
+                ),
+            }
+            if current.get("IMAGE_DURATION") is not None:
+                configuration["image_duration"] = current[
+                    "IMAGE_DURATION"
+                ]
+            if current.get("ROTATION") is not None:
+                configuration["rotation"] = current["ROTATION"]
+
+            allowed = {"image_duration", "rotation"}
+            unknown = set(updates) - allowed
+            if unknown:
+                raise ProvisioningError(
+                    "Unknown settings field(s): "
+                    + ", ".join(sorted(unknown))
+                )
+            configuration.update(updates)
+            resolved = self.provisioning.write(configuration)
+            self.last_configuration = resolved
+            self.last_error = None
+            self.publish_heartbeat()
+            self.publish_config_state(
+                state="settings_applied",
+                details={
+                    "image_duration": resolved.get(
+                        "IMAGE_DURATION"
+                    ),
+                    "rotation": resolved.get("ROTATION"),
+                },
+            )
+            if self.command_handler is not None:
+                self.command_handler("reload_configuration")
+
+        except (UnicodeDecodeError, json.JSONDecodeError, ProvisioningError) as error:
+            self.last_error = str(error)
+            self.publish_config_state(
+                state="rejected",
+                details={"error": str(error)},
+            )
+        except Exception as error:
+            self.last_error = str(error)
+            self.publish_config_state(
+                state="error",
+                details={"error": str(error)},
+            )
+
     def is_provisioned(self) -> bool:
         return self.provisioning.config_path.is_file()
 
@@ -1071,6 +1223,7 @@ class MediaAgent:
     def connect_for_provisioning(self) -> None:
         config_topic = self._topic("config/set")
         command_topic = self._topic("command")
+        settings_topic = self._topic("settings/set")
 
         self.mqtt.subscribe(
             topic=config_topic,
@@ -1084,6 +1237,12 @@ class MediaAgent:
             qos=1,
         )
 
+        self.mqtt.subscribe(
+            topic=settings_topic,
+            handler=self._handle_settings,
+            qos=1,
+        )
+
         self.mqtt.connect()
 
         self.mqtt.wait_for_subscription(
@@ -1093,6 +1252,11 @@ class MediaAgent:
 
         self.mqtt.wait_for_subscription(
             command_topic,
+            timeout=10,
+        )
+
+        self.mqtt.wait_for_subscription(
+            settings_topic,
             timeout=10,
         )
 

@@ -84,6 +84,10 @@ class Config:
             "AUDIO",
             "SHUFFLE",
             "LOOP",
+            "PLAYBACK_ENGINE",
+            "ALLOW_IMAGES",
+            "IMAGE_DURATION",
+            "ROTATION",
         )
 
         for key in override_keys:

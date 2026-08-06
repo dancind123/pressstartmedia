@@ -78,6 +78,7 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3-pil \
     swayimg \
     vlc \
+    mpv \
     wtype
 
 echo "[2/12] Creating Press Start directories..."
