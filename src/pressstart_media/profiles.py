@@ -43,7 +43,7 @@ PROFILES = {
         "ALLOW_IMAGES": True,
         "RECURSIVE": False,
         "IMAGE_DURATION": 10,
-        "ROTATION": 0,
+        "ROTATION": 270,
     },
     "host_stand": {
         "MEDIA_FOLDER": "/mnt/media/TV Signs/2 Host Stand TV",

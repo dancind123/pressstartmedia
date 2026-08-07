@@ -159,12 +159,64 @@ class MixedMediaWorker:
             check=True,
         )
 
+    def _prepare_image(self, path: Path) -> Path:
+        cache_directory = Path(
+            "/home/media/PressStart/runtime/image-cache"
+        )
+        cache_directory.mkdir(parents=True, exist_ok=True)
+
+        safe_name = (
+            path.name.replace("/", "_").replace("\\", "_")
+        )
+        cache_path = cache_directory / f"{safe_name}.png"
+
+        try:
+            source_mtime = path.stat().st_mtime_ns
+            cache_mtime = cache_path.stat().st_mtime_ns
+        except FileNotFoundError:
+            cache_mtime = -1
+            source_mtime = path.stat().st_mtime_ns
+
+        if cache_mtime >= source_mtime:
+            return cache_path
+
+        temporary_path = cache_path.with_suffix(".tmp.png")
+
+        subprocess.run(
+            [
+                self._find_command("ffmpeg", "ffmpeg"),
+                "-y",
+                "-loglevel",
+                "error",
+                "-i",
+                str(path),
+                "-vf",
+                "scale=1920:1920:force_original_aspect_ratio=decrease",
+                str(temporary_path),
+            ],
+            check=True,
+        )
+
+        temporary_path.replace(cache_path)
+        return cache_path
+
     def _play_image(self, path: Path) -> None:
+        prepared_path = self._prepare_image(path)
+
         command = [
-            self._find_command("swayimg", "swayimg"),
+            self._find_command("mpv", "mpv"),
             "--fullscreen",
-            "--config=info.show=no",
-            str(path),
+            "--no-border",
+            "--no-osc",
+            "--no-osd-bar",
+            "--cursor-autohide=1000",
+            "--vo=gpu-next",
+            "--gpu-context=wayland",
+            "--hwdec=no",
+            "--no-audio",
+            f"--image-display-duration={self.image_duration}",
+            "--keep-open=no",
+            str(prepared_path),
         ]
 
         self.current_process = subprocess.Popen(
@@ -172,18 +224,15 @@ class MixedMediaWorker:
             stdin=subprocess.DEVNULL,
         )
 
-        deadline = time.monotonic() + self.image_duration
-        while not self.stop_requested:
-            if self.current_process.poll() is not None:
-                break
+        while (
+            not self.stop_requested
+            and self.current_process.poll() is None
+        ):
+            time.sleep(0.1)
 
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                break
+        if self.stop_requested:
+            self._stop_current_process()
 
-            time.sleep(min(0.1, remaining))
-
-        self._stop_current_process()
         self.current_process = None
 
     def _play_video(self, path: Path) -> None:
