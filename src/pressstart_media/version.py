@@ -1,3 +1,3 @@
 PLATFORM_NAME = "Press Start Media Platform"
-VERSION = "0.7.0"
+VERSION = "0.7.1"
 BUILD_LABEL = f"{PLATFORM_NAME} v{VERSION}"

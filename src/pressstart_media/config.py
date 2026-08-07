@@ -86,6 +86,7 @@ class Config:
             "LOOP",
             "PLAYBACK_ENGINE",
             "ALLOW_IMAGES",
+            "RECURSIVE",
             "IMAGE_DURATION",
             "ROTATION",
         )

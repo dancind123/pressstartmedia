@@ -77,6 +77,7 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3-paho-mqtt \
     python3-pil \
     swayimg \
+    wlr-randr \
     vlc \
     mpv \
     wtype

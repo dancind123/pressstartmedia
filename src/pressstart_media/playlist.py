@@ -43,8 +43,18 @@ class PlaylistManager:
         extensions = set(VIDEO_EXTENSIONS)
         if self._as_boolean(self.config.get_player("ALLOW_IMAGES"), "ALLOW_IMAGES", False):
             extensions.update(IMAGE_EXTENSIONS)
+        recursive = self._as_boolean(
+            self.config.get_player("RECURSIVE"),
+            "RECURSIVE",
+            True,
+        )
+        candidates = (
+            self.media_folder.rglob("*")
+            if recursive
+            else self.media_folder.glob("*")
+        )
         media = [
-            path for path in self.media_folder.rglob("*")
+            path for path in candidates
             if path.is_file() and path.suffix.lower() in extensions
         ]
         media.sort(key=lambda path: str(path.relative_to(self.media_folder)).casefold())
@@ -94,7 +104,7 @@ class PlaylistManager:
         temporary_path = self.playlist_path.with_suffix(self.playlist_path.suffix + ".tmp")
         with temporary_path.open("w", encoding="utf-8") as playlist:
             engine = str(self.config.get_player("PLAYBACK_ENGINE") or "vlc").lower()
-            if engine == "mpv":
+            if engine in {"mpv", "mixed"}:
                 self._write_m3u(playlist, sequence)
             else:
                 self._write_xspf(playlist, sequence)
@@ -102,6 +112,14 @@ class PlaylistManager:
         shuffle = self._as_boolean(self.config.get_player("SHUFFLE"), "SHUFFLE", True)
         self.logger.info(f"Playlist created: {self.playlist_path}")
         self.logger.info(f"Media items added to playlist: {len(sequence)}")
-        self.logger.info("Playlist scan: recursive")
+        recursive = self._as_boolean(
+            self.config.get_player("RECURSIVE"),
+            "RECURSIVE",
+            True,
+        )
+        self.logger.info(
+            "Playlist scan: "
+            + ("recursive" if recursive else "base folder only")
+        )
         self.logger.info("Playlist order: " + ("shuffled" if shuffle else "alphabetical"))
         return len(sequence)
