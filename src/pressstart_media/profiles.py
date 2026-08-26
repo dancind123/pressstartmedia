@@ -81,6 +81,16 @@ PROFILES = {
         "LOOP": True,
         "ALLOW_IMAGES": False,
     },
+        "local_videos": {
+        "MEDIA_FOLDER": "/home/media/Videos",
+        "PLAYLIST": DEFAULT_PLAYLIST,
+        "PLAYBACK_ENGINE": "vlc",
+        "AUDIO": False,
+        "SHUFFLE": True,
+        "LOOP": True,
+        "ALLOW_IMAGES": False,
+        "RECURSIVE": True,
+    },
 }
 
 
