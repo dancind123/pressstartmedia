@@ -177,7 +177,7 @@ rm -f "${FSTAB_TEMP}"
 
 systemctl daemon-reload
 
-echo "[8/12] Installing kiosk cursor configuration..."
+echo "[8/12] Installing kiosk display configuration..."
 
 install -o "${INSTALL_USER}" -g "${INSTALL_USER}" -m 644 \
     "${REPOSITORY_ROOT}/config/templates/labwc-rc.xml" \
@@ -254,6 +254,8 @@ echo "  - Samba credentials"
 echo "  - MQTT credentials"
 echo "  - /mnt/media automount"
 echo "  - systemd user service"
+echo "  - persistent 1080p display management"
+echo "  - profile-controlled display rotation"
 echo "  - automatic cursor hiding"
 echo
 echo "The service has been enabled but not started."

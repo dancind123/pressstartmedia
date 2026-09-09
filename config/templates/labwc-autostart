@@ -1,3 +1,13 @@
+# Press Start Media display management.
+# Keep the kiosk output at 1920x1080@60 Hz and apply the rotation
+# configured by the selected player profile. The manager continues
+# running so HDMI power cycles cannot leave the display in a TV-selected
+# resolution or orientation.
+(
+    cd /home/media/PressStart/app || exit 1
+    /usr/bin/python3 -m pressstart_media.display_manager
+) &
+
 # Press Start Media kiosk cursor handling.
 # Wait for the graphical session, then invoke the Labwc cursor-hiding keybind.
 (
