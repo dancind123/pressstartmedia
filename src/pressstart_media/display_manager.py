@@ -45,6 +45,7 @@ class DisplayManager:
     LOG_PATH = Path(
         "/home/media/PressStart/logs/display-manager.log"
     )
+    MEDIA_SERVICE = "pressstart-media.service"
 
     OUTPUT_PATTERN = re.compile(
         r"^(\S+)\s+"
@@ -279,6 +280,53 @@ class DisplayManager:
             ) <= self.MODE_MATCH_TOLERANCE
         )
 
+    def _refresh_media_service(self) -> None:
+        executable = shutil.which("systemctl")
+
+        if not executable:
+            self.logger.warning(
+                "Display geometry changed, but systemctl was not found; "
+                "media service was not refreshed"
+            )
+            return
+
+        try:
+            result = subprocess.run(
+                [
+                    executable,
+                    "--user",
+                    "try-restart",
+                    self.MEDIA_SERVICE,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            self.logger.warning(
+                "Display geometry changed, but media service refresh failed: %s",
+                error,
+            )
+            return
+
+        if result.returncode != 0:
+            detail = (
+                result.stderr.strip()
+                or result.stdout.strip()
+                or f"exit status {result.returncode}"
+            )
+            self.logger.warning(
+                "Display geometry changed, but media service refresh failed: %s",
+                detail,
+            )
+            return
+
+        self.logger.info(
+            "Display geometry changed; refreshed %s",
+            self.MEDIA_SERVICE,
+        )
+
     def _apply_output_configuration(
         self,
         output: WaylandOutput,
@@ -362,6 +410,12 @@ class DisplayManager:
         )
         self.logger.info(status)
         self._last_status = status
+
+        # A live Wayland mode/transform change can leave an already-running
+        # VLC/MPV/swayimg surface sized for the previous output geometry.
+        # Restart only if the media service is already active; try-restart
+        # does nothing when it is stopped.
+        self._refresh_media_service()
 
     def apply_once(self) -> bool:
         try:

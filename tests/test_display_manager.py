@@ -7,7 +7,7 @@ from pressstart_media.display_manager import (
 )
 
 
-SAMPLE_OUTPUT = \'\'\'HDMI-A-1 "XXX Beyond TV 0x00010000 (HDMI-A-1)"
+SAMPLE_OUTPUT = '''HDMI-A-1 "XXX Beyond TV 0x00010000 (HDMI-A-1)"
   Make: XXX
   Model: Beyond TV
   Serial: 0x00010000
@@ -22,7 +22,7 @@ SAMPLE_OUTPUT = \'\'\'HDMI-A-1 "XXX Beyond TV 0x00010000 (HDMI-A-1)"
   Transform: normal
   Scale: 1.000000
   Adaptive Sync: disabled
-\'\'\'
+'''
 
 
 class DisplayManagerTests(unittest.TestCase):
@@ -64,16 +64,18 @@ class DisplayManagerTests(unittest.TestCase):
             (1920, 1080, 59.94),
         )
 
+    @patch.object(DisplayManager, "_refresh_media_service")
     @patch("pressstart_media.display_manager.subprocess.run")
     @patch.object(
         DisplayManager,
         "_find_wlr_randr",
         return_value="/usr/bin/wlr-randr",
     )
-    def test_apply_sets_mode_and_rotation(
+    def test_apply_sets_mode_and_rotation_and_refreshes_media(
         self,
         _find_wlr_randr,
         run,
+        refresh_media_service,
     ):
         output = WaylandOutput(
             name="HDMI-A-1",
@@ -104,7 +106,9 @@ class DisplayManagerTests(unittest.TestCase):
             timeout=5,
             check=True,
         )
+        refresh_media_service.assert_called_once_with()
 
+    @patch.object(DisplayManager, "_refresh_media_service")
     @patch("pressstart_media.display_manager.subprocess.run")
     @patch.object(
         DisplayManager,
@@ -115,6 +119,7 @@ class DisplayManagerTests(unittest.TestCase):
         self,
         _find_wlr_randr,
         run,
+        refresh_media_service,
     ):
         output = WaylandOutput(
             name="HDMI-A-2",
@@ -133,6 +138,7 @@ class DisplayManagerTests(unittest.TestCase):
         )
 
         run.assert_not_called()
+        refresh_media_service.assert_not_called()
 
 
 if __name__ == "__main__":
