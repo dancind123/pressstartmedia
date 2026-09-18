@@ -94,6 +94,7 @@ mkdir -p \
     "${INSTALL_ROOT}/scripts" \
     "${INSTALL_HOME}/.config/systemd/user" \
     "${INSTALL_HOME}/.config/labwc" \
+    "${INSTALL_HOME}/.config/pcmanfm/default" \
     "${MEDIA_MOUNT}"
 
 echo "[3/12] Installing application files..."
@@ -120,6 +121,10 @@ cp \
     "${REPOSITORY_ROOT}/scripts/start-media.sh" \
     "${INSTALL_ROOT}/bin/start-media.sh"
 
+cp \
+    "${REPOSITORY_ROOT}/scripts/update-pressstart-from-github.sh" \
+    "${INSTALL_HOME}/update-pressstart-from-github.sh"
+
 if [ "$(readlink -f "${REPOSITORY_ROOT}/scripts/generate-playlist.py")" != "$(readlink -f "${INSTALL_ROOT}/scripts/generate-playlist.py")" ]; then
     cp \
         "${REPOSITORY_ROOT}/scripts/generate-playlist.py" \
@@ -128,7 +133,8 @@ fi
 
 chmod +x \
     "${INSTALL_ROOT}/bin/start-media.sh" \
-    "${INSTALL_ROOT}/scripts/generate-playlist.py"
+    "${INSTALL_ROOT}/scripts/generate-playlist.py" \
+    "${INSTALL_HOME}/update-pressstart-from-github.sh"
 
 echo "[5/12] Installing platform configuration..."
 
@@ -187,6 +193,10 @@ install -o "${INSTALL_USER}" -g "${INSTALL_USER}" -m 644 \
     "${REPOSITORY_ROOT}/config/templates/labwc-autostart" \
     "${INSTALL_HOME}/.config/labwc/autostart"
 
+install -o "${INSTALL_USER}" -g "${INSTALL_USER}" -m 644 \
+    "${REPOSITORY_ROOT}/config/templates/pcmanfm-desktop-items-0.conf" \
+    "${INSTALL_HOME}/.config/pcmanfm/default/desktop-items-0.conf"
+
 echo "[9/12] Installing systemd user service..."
 
 cp \
@@ -197,8 +207,10 @@ echo "[10/12] Setting ownership and permissions..."
 
 chown -R "${INSTALL_USER}:${INSTALL_USER}" \
     "${INSTALL_ROOT}" \
+    "${INSTALL_HOME}/update-pressstart-from-github.sh" \
     "${INSTALL_HOME}/.config/systemd" \
-    "${INSTALL_HOME}/.config/labwc"
+    "${INSTALL_HOME}/.config/labwc" \
+    "${INSTALL_HOME}/.config/pcmanfm"
 
 chmod 755 \
     "${INSTALL_ROOT}" \
@@ -256,6 +268,7 @@ echo "  - /mnt/media automount"
 echo "  - systemd user service"
 echo "  - persistent 1080p display management"
 echo "  - profile-controlled display rotation"
+echo "  - Press Start kiosk desktop"
 echo "  - automatic cursor hiding"
 echo
 echo "The service has been enabled but not started."

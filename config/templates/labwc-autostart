@@ -14,3 +14,11 @@
     sleep 3
     /usr/bin/wtype -M alt -M logo -P h -m logo -m alt
 ) &
+
+# Press Start Media kiosk desktop.
+# Remove the Raspberry Pi desktop panel after the system session starts it.
+(
+    sleep 2
+    pkill -f '/usr/bin/lwrespawn /usr/bin/wf-panel-pi' 2>/dev/null || true
+    pkill -x wf-panel-pi 2>/dev/null || true
+) &
