@@ -32,6 +32,9 @@ PROFILES = {
         "SHUFFLE": True,
         "LOOP": True,
         "ALLOW_IMAGES": False,
+        "WATCHDOG_ENABLED": True,
+        "WATCHDOG_TIMEOUT_SECONDS": 30,
+        "WATCHDOG_POLL_SECONDS": 15,
     },
     "outside_window": {
         "MEDIA_FOLDER": "/mnt/media/TV Signs/1 Outside Window Screen",

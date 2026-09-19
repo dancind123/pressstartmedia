@@ -250,6 +250,69 @@ class Player:
             stdin=subprocess.DEVNULL,
         )
 
+    def _get_vlc_mpris_property(self, property_name: str) -> str | None:
+        try:
+            result = subprocess.run(
+                [
+                    "gdbus",
+                    "call",
+                    "--session",
+                    "--dest",
+                    "org.mpris.MediaPlayer2.vlc",
+                    "--object-path",
+                    "/org/mpris/MediaPlayer2",
+                    "--method",
+                    "org.freedesktop.DBus.Properties.Get",
+                    "org.mpris.MediaPlayer2.Player",
+                    property_name,
+                ],
+                env=self.build_environment(),
+                capture_output=True,
+                text=True,
+                timeout=2,
+                check=True,
+            )
+        except (
+            FileNotFoundError,
+            subprocess.CalledProcessError,
+            subprocess.TimeoutExpired,
+        ):
+            return None
+
+        return result.stdout.strip()
+
+    def playback_progress(self) -> tuple[str | None, int | None]:
+        if not self.is_running() or self.engine != "vlc":
+            return None, None
+
+        status_raw = self._get_vlc_mpris_property(
+            "PlaybackStatus"
+        )
+        position_raw = self._get_vlc_mpris_property(
+            "Position"
+        )
+
+        status = None
+        position = None
+
+        if status_raw:
+            status_match = re.search(
+                r"<['\"]([^'\"]+)['\"]>",
+                status_raw,
+            )
+            if status_match:
+                status = status_match.group(1)
+
+        if position_raw:
+            position_match = re.search(
+                r"int64\s+(-?\d+)",
+                position_raw,
+            )
+            if position_match:
+                position = int(position_match.group(1))
+
+        return status, position
+
     def _current_media_vlc(self) -> str | None:
         try:
             result = subprocess.run(

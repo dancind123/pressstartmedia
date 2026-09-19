@@ -840,6 +840,25 @@ class MediaAgent:
                 object_id="rotation",
                 config=rotation_config,
             )
+        update_config = (
+            self._home_assistant_common_config(
+                object_id="update_from_github",
+                name="Update from GitHub",
+            )
+        )
+        update_config.update(
+            {
+                "command_topic": self._topic("command"),
+                "payload_press": "update",
+                "icon": "mdi:update",
+                "entity_category": "config",
+            }
+        )
+        self._publish_home_assistant_config(
+            component="button",
+            object_id="update_from_github",
+            config=update_config,
+        )
 
         reboot_config = (
             self._home_assistant_common_config(

@@ -71,6 +71,7 @@ class MediaManager:
             "restart": self.restart_playback,
             "reload_playlist": self.reload_playlist,
             "reload_configuration": self.reload_configuration,
+            "update": self.update_from_github,
             "reboot": self.reboot_system,
             "shutdown": self.shutdown_system,
         }
@@ -115,6 +116,32 @@ class MediaManager:
             f"{setting_name} has an invalid Boolean value: "
             f"{value!r}"
         )
+
+    def _as_integer(
+        self,
+        value,
+        setting_name: str,
+        default: int,
+        minimum: int,
+        maximum: int,
+    ) -> int:
+        if value is None:
+            return default
+
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError) as error:
+            raise RuntimeError(
+                f"{setting_name} must be an integer"
+            ) from error
+
+        if not minimum <= parsed <= maximum:
+            raise RuntimeError(
+                f"{setting_name} must be between "
+                f"{minimum} and {maximum}"
+            )
+
+        return parsed
 
     def set_state(
         self,
@@ -350,6 +377,35 @@ class MediaManager:
         if self.player.is_running():
             self.player.stop()
 
+    def update_from_github(self) -> None:
+        updater_path = (
+            "/home/media/update-pressstart-from-github.sh"
+        )
+
+        self.logger.info(
+            "UPDATE REQUESTED -> GitHub"
+        )
+
+        self.set_state(
+            "UPDATING_FROM_GITHUB",
+            details={
+                "command": "update",
+            },
+        )
+
+        self.display.show_logo()
+
+        subprocess.run(
+            (
+                "/usr/bin/systemd-run",
+                "--user",
+                "--unit=pressstart-media-update",
+                "--collect",
+                updater_path,
+            ),
+            check=True,
+        )
+
     def reboot_system(self) -> None:
         self._request_system_action(
             action="reboot",
@@ -392,6 +448,42 @@ class MediaManager:
             force=True
         )
 
+        watchdog_enabled = self._as_boolean(
+            self.config.get_player("WATCHDOG_ENABLED"),
+            "WATCHDOG_ENABLED",
+            default=False,
+        )
+
+        watchdog_timeout = self._as_integer(
+            self.config.get_player("WATCHDOG_TIMEOUT_SECONDS"),
+            "WATCHDOG_TIMEOUT_SECONDS",
+            default=120,
+            minimum=30,
+            maximum=3600,
+        )
+
+        watchdog_poll = self._as_integer(
+            self.config.get_player("WATCHDOG_POLL_SECONDS"),
+            "WATCHDOG_POLL_SECONDS",
+            default=15,
+            minimum=5,
+            maximum=300,
+        )
+
+        last_progress_time = time.monotonic()
+        last_position = None
+        last_media = self._last_current_media
+        next_watchdog_poll = (
+            time.monotonic() + watchdog_poll
+        )
+
+        if watchdog_enabled:
+            self.logger.info(
+                "WATCHDOG -> enabled "
+                f"(timeout={watchdog_timeout}s, "
+                f"poll={watchdog_poll}s)"
+            )
+
         while self.player.is_running():
             try:
                 command = self.command_queue.get(
@@ -399,16 +491,80 @@ class MediaManager:
                 )
 
             except queue.Empty:
-                self._publish_current_media_if_changed()
-                continue
+                pass
 
-            try:
-                self._execute_command(command)
+            else:
+                try:
+                    self._execute_command(command)
 
-            finally:
-                self.command_queue.task_done()
+                finally:
+                    self.command_queue.task_done()
 
             self._publish_current_media_if_changed()
+
+            if (
+                watchdog_enabled
+                and self.player.is_running()
+                and time.monotonic() >= next_watchdog_poll
+            ):
+                now = time.monotonic()
+                next_watchdog_poll = now + watchdog_poll
+
+                status, position = self.player.playback_progress()
+                current_media = self._last_current_media
+
+                media_changed = (
+                    current_media is not None
+                    and last_media is not None
+                    and current_media != last_media
+                )
+
+                position_advanced = (
+                    status == "Playing"
+                    and position is not None
+                    and last_position is not None
+                    and position > last_position
+                )
+
+                first_valid_sample = (
+                    status == "Playing"
+                    and position is not None
+                    and last_position is None
+                )
+
+                if (
+                    media_changed
+                    or position_advanced
+                    or first_valid_sample
+                ):
+                    last_progress_time = now
+
+                if current_media is not None:
+                    last_media = current_media
+
+                if position is not None:
+                    last_position = position
+
+                stalled_seconds = (
+                    now - last_progress_time
+                )
+
+                if stalled_seconds >= watchdog_timeout:
+                    self.logger.error(
+                        "WATCHDOG -> playback progress stalled "
+                        f"for {int(stalled_seconds)} seconds "
+                        f"(status={status!r}, "
+                        f"media={current_media!r}, "
+                        f"position={position!r})"
+                    )
+                    self.logger.error(
+                        "WATCHDOG -> rebooting system"
+                    )
+
+                    self._request_system_action(
+                        action="reboot",
+                        state="WATCHDOG_REBOOTING",
+                    )
 
         return self.player.wait()
 
