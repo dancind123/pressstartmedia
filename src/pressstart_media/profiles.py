@@ -77,14 +77,15 @@ PROFILES = {
     },
     "downstairs_bar": {
         "MEDIA_FOLDER": "/mnt/media/TV Signs/5 Downstairs Bar",
-        "PLAYLIST": DEFAULT_PLAYLIST,
-        "PLAYBACK_ENGINE": "vlc",
+        "PLAYLIST": MPV_PLAYLIST,
+        "PLAYBACK_ENGINE": "dual_image",
         "AUDIO": False,
-        "SHUFFLE": True,
+        "SHUFFLE": False,
         "LOOP": True,
-        "ALLOW_IMAGES": False,
+        "ALLOW_IMAGES": True,
+        "RECURSIVE": False,
     },
-        "local_videos": {
+    "local_videos": {
         "MEDIA_FOLDER": "/home/media/Videos",
         "PLAYLIST": DEFAULT_PLAYLIST,
         "PLAYBACK_ENGINE": "vlc",

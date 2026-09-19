@@ -1,0 +1,12 @@
+[Unit]
+Description=Press Start Downstairs Bar Display Keeper
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/home/media/PressStart/bin/downstairs-display-keeper.sh
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

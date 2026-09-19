@@ -117,24 +117,23 @@ fi
 
 echo "[4/12] Installing runtime scripts..."
 
-cp \
+install -o "${INSTALL_USER}" -g "${INSTALL_USER}" -m 755 \
     "${REPOSITORY_ROOT}/scripts/start-media.sh" \
     "${INSTALL_ROOT}/bin/start-media.sh"
 
-cp \
+install -o "${INSTALL_USER}" -g "${INSTALL_USER}" -m 755 \
+    "${REPOSITORY_ROOT}/scripts/downstairs-display-keeper.sh" \
+    "${INSTALL_ROOT}/bin/downstairs-display-keeper.sh"
+
+install -o "${INSTALL_USER}" -g "${INSTALL_USER}" -m 755 \
     "${REPOSITORY_ROOT}/scripts/update-pressstart-from-github.sh" \
     "${INSTALL_HOME}/update-pressstart-from-github.sh"
 
 if [ "$(readlink -f "${REPOSITORY_ROOT}/scripts/generate-playlist.py")" != "$(readlink -f "${INSTALL_ROOT}/scripts/generate-playlist.py")" ]; then
-    cp \
+    install -o "${INSTALL_USER}" -g "${INSTALL_USER}" -m 755 \
         "${REPOSITORY_ROOT}/scripts/generate-playlist.py" \
         "${INSTALL_ROOT}/scripts/generate-playlist.py"
 fi
-
-chmod +x \
-    "${INSTALL_ROOT}/bin/start-media.sh" \
-    "${INSTALL_ROOT}/scripts/generate-playlist.py" \
-    "${INSTALL_HOME}/update-pressstart-from-github.sh"
 
 echo "[5/12] Installing platform configuration..."
 
@@ -197,11 +196,15 @@ install -o "${INSTALL_USER}" -g "${INSTALL_USER}" -m 644 \
     "${REPOSITORY_ROOT}/config/templates/pcmanfm-desktop-items-0.conf" \
     "${INSTALL_HOME}/.config/pcmanfm/default/desktop-items-0.conf"
 
-echo "[9/12] Installing systemd user service..."
+echo "[9/12] Installing systemd user services..."
 
-cp \
+install -o "${INSTALL_USER}" -g "${INSTALL_USER}" -m 644 \
     "${REPOSITORY_ROOT}/systemd/pressstart-media.service" \
     "${INSTALL_HOME}/.config/systemd/user/pressstart-media.service"
+
+install -o "${INSTALL_USER}" -g "${INSTALL_USER}" -m 644 \
+    "${REPOSITORY_ROOT}/systemd/pressstart-downstairs-displays.service" \
+    "${INSTALL_HOME}/.config/systemd/user/pressstart-downstairs-displays.service"
 
 echo "[10/12] Setting ownership and permissions..."
 
@@ -218,13 +221,17 @@ chmod 755 \
     "${INSTALL_ROOT}/assets" \
     "${INSTALL_ROOT}/bin" \
     "${INSTALL_ROOT}/runtime" \
-    "${INSTALL_ROOT}/scripts"
+    "${INSTALL_ROOT}/scripts" \
+    "${INSTALL_ROOT}/bin/start-media.sh" \
+    "${INSTALL_ROOT}/bin/downstairs-display-keeper.sh" \
+    "${INSTALL_ROOT}/scripts/generate-playlist.py" \
+    "${INSTALL_HOME}/update-pressstart-from-github.sh"
 
 chmod 600 \
     "${MEDIA_CREDENTIALS}" \
     "${MQTT_CREDENTIALS}"
 
-echo "[11/12] Enabling the user service..."
+echo "[11/12] Enabling the standard user service..."
 
 loginctl enable-linger "${INSTALL_USER}"
 
@@ -242,6 +249,11 @@ sudo -u "${INSTALL_USER}" \
 sudo -u "${INSTALL_USER}" \
     XDG_RUNTIME_DIR="${USER_RUNTIME_DIR}" \
     systemctl --user enable pressstart-media.service
+
+# The Downstairs display keeper is installed but deliberately not enabled
+# here. Fresh installations are unprovisioned at this point. Once a player
+# is provisioned as downstairs_bar, the GitHub updater activates the
+# profile-specific display service and Labwc configuration.
 
 echo "[12/12] Checking the media-server mount..."
 
@@ -265,13 +277,14 @@ echo "  - Platform configuration"
 echo "  - Samba credentials"
 echo "  - MQTT credentials"
 echo "  - /mnt/media automount"
-echo "  - systemd user service"
-echo "  - persistent 1080p display management"
+echo "  - standard systemd user service"
+echo "  - Downstairs dual-display service support"
+echo "  - persistent display management"
 echo "  - profile-controlled display rotation"
 echo "  - Press Start kiosk desktop"
 echo "  - automatic cursor hiding"
 echo
-echo "The service has been enabled but not started."
+echo "The standard media service has been enabled but not started."
 echo
 echo "The player will remain unprovisioned until Home Assistant"
 echo "supplies its player name and profile through MQTT."

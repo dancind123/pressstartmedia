@@ -24,7 +24,7 @@ class Player:
             self.config.get_player("PLAYBACK_ENGINE") or "vlc"
         ).strip().lower()
 
-        if self.engine not in {"vlc", "mixed"}:
+        if self.engine not in {"vlc", "mixed", "dual_image"}:
             raise RuntimeError(
                 f"Unsupported playback engine: {self.engine}"
             )
@@ -75,6 +75,7 @@ class Player:
     ) -> int:
         if value is None:
             return default
+
         try:
             parsed = int(value)
         except (TypeError, ValueError) as error:
@@ -107,6 +108,7 @@ class Player:
             )
             else "--no-random"
         )
+
         command.append(
             "--loop"
             if self._as_boolean(
@@ -139,6 +141,7 @@ class Player:
                 str(self.playlist_path),
             ]
         )
+
         return command
 
     def _build_mixed_command(self) -> list[str]:
@@ -149,6 +152,7 @@ class Player:
             1,
             3600,
         )
+
         rotation = self._as_integer(
             self.config.get_player("ROTATION"),
             "ROTATION",
@@ -156,6 +160,7 @@ class Player:
             0,
             270,
         )
+
         if rotation not in {0, 90, 180, 270}:
             raise RuntimeError(
                 "ROTATION must be one of: 0, 90, 180, 270"
@@ -188,6 +193,22 @@ class Player:
             str(self.current_media_path),
         ]
 
+    def _build_dual_image_command(self) -> list[str]:
+        try:
+            self.current_media_path.unlink()
+        except FileNotFoundError:
+            pass
+
+        return [
+            sys.executable,
+            "-m",
+            "pressstart_media.dual_image_player",
+            "--playlist",
+            str(self.playlist_path),
+            "--state-file",
+            str(self.current_media_path),
+        ]
+
     def build_command(self) -> list[str]:
         if not self.playlist_path.is_file():
             raise RuntimeError(
@@ -196,6 +217,9 @@ class Player:
 
         if self.engine == "mixed":
             return self._build_mixed_command()
+
+        if self.engine == "dual_image":
+            return self._build_dual_image_command()
 
         return self._build_vlc_command()
 
@@ -223,6 +247,7 @@ class Player:
         )
         environment.pop("DISPLAY", None)
         environment.pop("VLC_VOUT", None)
+
         return environment
 
     def start(self) -> None:
@@ -250,7 +275,10 @@ class Player:
             stdin=subprocess.DEVNULL,
         )
 
-    def _get_vlc_mpris_property(self, property_name: str) -> str | None:
+    def _get_vlc_mpris_property(
+        self,
+        property_name: str,
+    ) -> str | None:
         try:
             result = subprocess.run(
                 [
@@ -281,7 +309,9 @@ class Player:
 
         return result.stdout.strip()
 
-    def playback_progress(self) -> tuple[str | None, int | None]:
+    def playback_progress(
+        self,
+    ) -> tuple[str | None, int | None]:
         if not self.is_running() or self.engine != "vlc":
             return None, None
 
@@ -343,6 +373,7 @@ class Player:
             return None
 
         metadata = result.stdout
+
         url_match = re.search(
             r"'xesam:url': <'([^']+)'>",
             metadata,
@@ -363,7 +394,7 @@ class Player:
 
         return None
 
-    def _current_media_mixed(self) -> str | None:
+    def _current_media_state_file(self) -> str | None:
         try:
             raw_path = self.current_media_path.read_text(
                 encoding="utf-8"
@@ -377,8 +408,8 @@ class Player:
         if not self.is_running():
             return None
 
-        if self.engine == "mixed":
-            return self._current_media_mixed()
+        if self.engine in {"mixed", "dual_image"}:
+            return self._current_media_state_file()
 
         return self._current_media_vlc()
 
@@ -393,6 +424,7 @@ class Player:
             raise RuntimeError(
                 f"{self.engine.upper()} player has not been started"
             )
+
         return self.process.wait()
 
     def stop(self) -> None:
@@ -402,6 +434,7 @@ class Player:
         self.logger.info(
             f"Stopping {self.engine.upper()} playback"
         )
+
         self.process.terminate()
 
         try:
@@ -414,7 +447,7 @@ class Player:
             self.process.kill()
             self.process.wait()
 
-        if self.engine == "mixed":
+        if self.engine in {"mixed", "dual_image"}:
             try:
                 self.current_media_path.unlink()
             except FileNotFoundError:

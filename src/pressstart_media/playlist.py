@@ -104,7 +104,7 @@ class PlaylistManager:
         temporary_path = self.playlist_path.with_suffix(self.playlist_path.suffix + ".tmp")
         with temporary_path.open("w", encoding="utf-8") as playlist:
             engine = str(self.config.get_player("PLAYBACK_ENGINE") or "vlc").lower()
-            if engine in {"mpv", "mixed"}:
+            if engine in {"mpv", "mixed", "dual_image"}:
                 self._write_m3u(playlist, sequence)
             else:
                 self._write_xspf(playlist, sequence)
