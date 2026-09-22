@@ -2,6 +2,7 @@ import json
 import shutil
 import socket
 import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -1262,7 +1263,30 @@ class MediaAgent:
             qos=1,
         )
 
-        self.mqtt.connect()
+        retry_interval = 5
+        retry_timeout = 60
+        retry_deadline = time.monotonic() + retry_timeout
+
+        while True:
+            try:
+                self.mqtt.connect()
+                break
+
+            except (
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as error:
+                if time.monotonic() >= retry_deadline:
+                    raise
+
+                print(
+                    "MQTT connection unavailable; "
+                    f"retrying in {retry_interval} seconds: "
+                    f"{error}"
+                )
+
+                time.sleep(retry_interval)
 
         self.mqtt.wait_for_subscription(
             config_topic,
