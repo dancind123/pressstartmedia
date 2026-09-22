@@ -3,6 +3,9 @@
 export XDG_RUNTIME_DIR="/run/user/$(id -u)"
 export WAYLAND_DISPLAY="wayland-0"
 
+# Allow Labwc to finish establishing its initial output layout before
+# enforcing the permanent Downstairs Bar display configuration.
+sleep 5
 last_signature=""
 
 get_output_for_display() {
